@@ -1,0 +1,725 @@
+Q. Difference between auto and decltype
+In **C++**, `auto` and `decltype` are both used for **type deduction**, but they serve **different purposes** and follow **different rules**.
+
+Below is a clear, practical comparison with examples.
+
+***
+
+## 1. Purpose (High‑level difference)
+
+| Feature       | `auto`                               | `decltype`                                 |
+| ------------- | ------------------------------------ | ------------------------------------------ |
+| Primary role  | Deduces type from an **initializer** | Deduces type from an **expression**        |
+| Introduced in | C++11                                | C++11                                      |
+| Main use      | Simplify variable declarations       | Obtain the **exact type** of an expression |
+
+***
+
+## 2. `auto`: Type deduction from initialization
+
+### Basic example
+
+```cpp
+auto x = 10;        // int
+auto y = 3.14;      // double
+auto z = x;         // int
+```
+
+`auto` looks at the **right-hand side** and deduces the type.
+
+### References and const are usually dropped
+
+```cpp
+int a = 10;
+int& r = a;
+const int c = 20;
+
+auto x = r;    // int (reference removed)
+auto y = c;    // int (const removed)
+```
+
+✅ `auto` **drops top-level `const` and references**
+
+***
+
+### Preserving reference/const with `auto&` / `auto&&`
+
+```cpp
+auto& r1 = a;       // int&
+const auto& r2 = c; // const int&
+```
+
+***
+
+### Common use cases for `auto`
+
+✅ Iterators  
+✅ Lambdas  
+✅ Long template types
+
+```cpp
+std::vector<int> v{1,2,3};
+for (auto it = v.begin(); it != v.end(); ++it) { }
+```
+
+***
+
+## 3. `decltype`: Type deduction from an expression
+
+`decltype` examines the **exact expression**, not a value.
+
+### Basic example
+
+```cpp
+int a = 10;
+
+decltype(a) x = 20;      // int
+decltype((a)) y = a;    // int&  ← important!
+```
+
+***
+
+### Key rule of `decltype`
+
+| Expression                      | Deduced type |
+| ------------------------------- | ------------ |
+| `decltype(a)`                   | `int`        |
+| `decltype((a))`                 | `int&`       |
+| `decltype(r)` (where r is int&) | `int&`       |
+| `decltype(10)`                  | `int`        |
+
+✅ Parentheses matter!
+
+***
+
+### Preserves const and reference
+
+```cpp
+const int c = 30;
+
+decltype(c) x = 30;     // const int
+```
+
+Unlike `auto`, **nothing is removed**.
+
+***
+
+## 4. Side‑by‑side comparison
+
+```cpp
+int a = 10;
+int& r = a;
+const int c = 20;
+
+auto x1 = r;            // int
+decltype(r) x2 = r;     // int&
+
+auto y1 = c;            // int
+decltype(c) y2 = c;     // const int
+```
+
+***
+
+## 5. Expressions vs values (very important)
+
+```cpp
+int a = 10, b = 20;
+
+auto x = a + b;         // int
+decltype(a + b) y = 0;  // int
+```
+
+But:
+
+```cpp
+decltype((a)) z = a;    // int&
+```
+
+➡️ `decltype` sees **how** the expression is written.
+
+***
+
+## 6. `auto` vs `decltype(auto)` (C++14)
+
+C++14 introduced `decltype(auto)` to combine both behaviors.
+
+```cpp
+int x = 10;
+int& f() { return x; }
+
+auto a = f();           // int        (reference dropped)
+decltype(auto) b = f(); // int& ✅
+```
+
+✅ Use `decltype(auto)` when you want **exact type inference**, including references.
+
+***
+
+## 7. When to use which?
+
+### Use `auto` when:
+
+✅ You want clean, readable code  
+✅ Reference/const correctness is not critical  
+✅ Declaring variables and iterators
+
+### Use `decltype` when:
+
+✅ You need the **exact type**  
+✅ Writing templates  
+✅ Declaring return types dependent on expressions
+
+```cpp
+template <typename T, typename U>
+auto add(T t, U u) -> decltype(t + u) {
+    return t + u;
+}
+```
+
+***
+
+## 8. Summary (One‑line memory trick)
+
+*   **`auto`** → *What is the type of this value?*
+*   **`decltype`** → *What is the type of this expression exactly?*
+
+***
+
+If you want, I can also:
+
+*   Explain `auto` vs `template type deduction`
+*   Show tricky interview questions
+*   Explain `decltype(auto)` in depth
+*   Compare with `using` and `typedef`
+
+Just tell me 👍
+
+Q. Difference between lambda and inline function
+In **C++**, both **lambda expressions** and **inline functions** are callable units and often compared, but they are **fundamentally different concepts** with different goals.
+
+Below is a clear, structured explanation with examples.
+
+***
+
+# Lambda Expression vs Inline Function (C++)
+
+## 1. Basic Definition
+
+### Inline function
+
+An **inline function** is a regular function where the compiler is *requested* to replace the function call with the function body to reduce call overhead.
+
+```cpp
+inline int add(int a, int b) {
+    return a + b;
+}
+```
+
+✅ Keyword: `inline`  
+✅ Exists since early C++  
+✅ Just a normal function
+
+***
+
+### Lambda expression
+
+A **lambda** is an **anonymous function object** (functor) that can **capture variables** from its surrounding scope.
+
+```cpp
+auto add = int a, int b {
+    return a + b;
+};
+```
+
+✅ Introduced in **C++11**  
+✅ Has no name  
+✅ Can capture local variables
+
+***
+
+## 2. Key Differences (At a Glance)
+
+| Aspect                      | Lambda              | Inline Function            |
+| --------------------------- | ------------------- | -------------------------- |
+| Name                        | Anonymous           | Named                      |
+| Scope                       | Local / block level | Global / namespace / class |
+| Captures local variables    | ✅ Yes               | ❌ No                       |
+| Is a function object        | ✅ Yes               | ❌ No                       |
+| Can be passed easily        | ✅ Yes               | ✅ Yes                      |
+| Inline expansion guaranteed | ❌ No                | ❌ No                       |
+
+⚠️ **Important:**  
+Neither lambdas nor inline functions are *guaranteed* to be inlined — the compiler decides.
+
+***
+
+## 3. Scope and Usage
+
+### Inline function
+
+```cpp
+inline int square(int x) {
+    return x * x;
+}
+```
+
+*   Defined at namespace or class scope
+*   Cannot be defined inside another function (except as local static in C++)
+*   Cannot access local variables unless passed explicitly
+
+***
+
+### Lambda
+
+```cpp
+int factor = 10;
+auto multiply = int x {
+    return x * factor;
+};
+```
+
+*   Defined **inside a function**
+*   Has access to surrounding variables via captures
+*   Perfect for short, localized behavior
+
+***
+
+## 4. Variable Capture (Major Difference)
+
+### Inline function ❌
+
+```cpp
+int x = 10;
+
+inline int f(int a) {
+    return a + x; // ❌ ERROR: x not visible
+}
+```
+
+***
+
+### Lambda ✅
+
+```cpp
+int x = 10;
+
+auto f = int a {
+    return a + x; // ✅ OK
+};
+```
+
+✅ Lambdas can capture by:
+
+*   Value: `[x]`
+*   Reference: `[&x]`
+*   All: `[=]`, `[&]`
+
+***
+
+## 5. Type Nature
+
+### Inline function
+
+*   Has a **function type**
+*   One function definition shared everywhere
+
+```cpp
+int (*pf)(int, int) = add;
+```
+
+***
+
+### Lambda
+
+*   Each lambda has a **unique, unnamed compiler-generated type**
+*   Acts like an object with `operator()`
+
+```cpp
+auto lambda = int x { return x * 2; };
+// lambda is an object, not a function
+```
+
+Equivalent to:
+
+```cpp
+struct __Lambda {
+    int operator()(int x) const { return x * 2; }
+};
+```
+
+***
+
+## 6. Passing as Arguments
+
+### Inline function
+
+```cpp
+void process(int (*func)(int)) {
+    func(10);
+}
+```
+
+***
+
+### Lambda (more flexible)
+
+```cpp
+void process(std::function<int(int)> func) {
+    func(10);
+}
+
+process(int x { return x * 2; });
+```
+
+✅ Lambdas are heavily used with:
+
+*   STL algorithms
+*   Callbacks
+*   Event handling
+
+***
+
+## 7. Performance Considerations
+
+### Inline function
+
+*   `inline` is only a **compiler hint**
+*   Compiler may ignore it
+*   Typically good for small utility functions
+
+### Lambda
+
+*   Often completely optimized
+*   Stateless lambdas can be as fast as function pointers
+*   Capturing lambdas may be optimized into registers
+
+✅ **Performance difference is usually negligible**
+
+***
+
+## 8. Typical Use Cases
+
+### Prefer inline function when:
+
+✅ Function is reusable  
+✅ Part of an API or library  
+✅ Clear semantic meaning
+
+```cpp
+inline int max(int a, int b) {
+    return (a > b) ? a : b;
+}
+```
+
+***
+
+### Prefer lambda when:
+
+✅ Short, one‑time logic  
+✅ Used near the call site  
+✅ Needs to capture local variables
+
+```cpp
+std::sort(v.begin(), v.end(),
+          int a, int b { return a > b; });
+```
+
+***
+
+## 9. Can Lambdas Be Inline?
+
+Yes — **implicitly**.
+
+```cpp
+auto f = int x { return x * x; };
+```
+
+*   Compiler may inline the lambda body
+*   No `inline` keyword needed
+
+***
+
+## 10. One‑Line Summary
+
+*   **Inline function** → *Named function; reusable; no captures*
+*   **Lambda** → *Anonymous function object; can capture local state*
+
+***
+
+If you want, I can also:
+
+*   Compare **lambda vs function pointer**
+*   Explain **stateless vs capturing lambdas**
+*   Show **real interview questions**
+*   Explain **mutable lambdas**
+
+Just tell me 🙂
+
+Q. Why can't we use lamda functions everywhere instead of normal functions
+Great question — this gets to the **design philosophy of C++**, not just syntax.
+
+Short answer: **lambdas and normal functions solve different problems**. Lambdas are *not a full replacement* for normal functions, even though they often look interchangeable.
+
+Below is a clear, practical explanation.
+
+***
+
+## 1. Lambdas are objects, not “real” functions
+
+A **lambda is a function object** (a class with `operator()`), not a regular function.
+
+```cpp
+auto f = int x { return x * 2; };
+```
+
+Conceptually becomes:
+
+```cpp
+struct __Lambda {
+    int operator()(int x) const { return x * 2; }
+};
+```
+
+### Why this matters
+
+*   Lambdas **don’t have a stable function type**
+*   Each lambda has a **unique, unnamed type**
+*   This affects linkage, ABI, reuse, and interfaces
+
+Normal functions have:
+✅ Stable types  
+✅ Linkage  
+✅ Addresses usable across translation units
+
+***
+
+## 2. Lambdas have no linkage (cannot replace APIs)
+
+You **cannot declare a lambda in a header and define it elsewhere**.
+
+```cpp
+// ❌ Impossible with lambdas
+extern ???? my_lambda;
+```
+
+### Normal functions ✅
+
+```cpp
+// header.h
+int compute(int);
+
+// source.cpp
+int compute(int x) { return x * 2; }
+```
+
+✅ This is essential for:
+
+*   Libraries
+*   Large codebases
+*   Separate compilation
+*   ABI stability
+
+**Lambdas cannot replace public APIs.**
+
+***
+
+## 3. Lambdas cannot be overloaded meaningfully
+
+```cpp
+auto f = int x { return x; };
+auto f = double x { return x; }; // ❌ error: redefinition
+```
+
+Each lambda has a unique type — no common overload set.
+
+### Normal functions ✅
+
+```cpp
+int f(int);
+double f(double);
+```
+
+✅ Overloading is fundamental to C++ APIs.
+
+***
+
+## 4. Lambdas don’t support templates like functions do
+
+Although **generic lambdas** exist (C++14+):
+
+```cpp
+auto add = auto a, auto b { return a + b; };
+```
+
+Limitations vs function templates:
+
+*   No partial specialization
+*   No explicit specialization
+*   Harder error diagnostics
+*   Limited separation of interface & implementation
+
+### Function template ✅
+
+```cpp
+template<typename T>
+T add(T a, T b);
+```
+
+✅ Far more expressive and controllable.
+
+***
+
+## 5. Lambdas cannot be virtual
+
+```cpp
+struct Base {
+    virtual void f() = 0;
+};
+```
+
+You **cannot override virtual functions with lambdas**.
+
+Virtual dispatch requires:
+
+*   Named functions
+*   Stable vtables
+*   Class-based behavior
+
+✅ Lambdas are not suitable for polymorphic interfaces.
+
+***
+
+## 6. Lambdas complicate recursion & reuse
+
+### Recursion with lambdas is awkward:
+
+```cpp
+auto fact = int n {
+    return n <= 1 ? 1 : n * fact(n); // ❌ fact not visible
+};
+```
+
+Workarounds exist, but they’re:
+
+*   Verbose
+*   Less readable
+*   Less beginner-friendly
+
+### Normal functions ✅
+
+```cpp
+int fact(int n) {
+    return n <= 1 ? 1 : n * fact(n);
+}
+```
+
+***
+
+## 7. Captures are a double‑edged sword
+
+Lambdas can capture variables — this is powerful but dangerous.
+
+```cpp
+auto f;
+{
+    int x = 10;
+    f = & { return x; }; // ❌ dangling reference
+}
+```
+
+### Problems:
+
+*   Lifetime issues
+*   Hidden dependencies
+*   Harder reasoning
+*   Debugging complexity
+
+Normal functions:
+✅ No hidden state  
+✅ Explicit inputs  
+✅ Safer APIs
+
+***
+
+## 8. Tooling, debugging, and diagnostics
+
+In real-world codebases:
+
+*   Lambdas produce **ugly compiler errors**
+*   Stack traces are harder to read
+*   Debuggers show compiler‑generated names
+
+Normal functions:
+✅ Better symbols  
+✅ Clear stack traces  
+✅ Clear ownership
+
+This **matters a lot** in large systems.
+
+***
+
+## 9. Compilation time & binary size
+
+Lambdas:
+
+*   Generate unique types
+*   Increase template instantiations
+*   Can increase compile times
+*   Can cause code bloat if abused
+
+Normal functions:
+✅ One definition
+✅ Reused across translation units
+
+***
+
+## 10. Design rule: “Local behavior vs program behavior”
+
+### Lambdas are best for:
+
+✅ Local, short‑lived behavior  
+✅ Callbacks  
+✅ STL algorithms  
+✅ One‑off logic near usage
+
+```cpp
+std::sort(v.begin(), v.end(),
+          int a, int b { return a > b; });
+```
+
+***
+
+### Normal functions are best for:
+
+✅ APIs  
+✅ Reusable logic  
+✅ Interfaces  
+✅ Polymorphism  
+✅ Libraries
+
+```cpp
+bool CompareDescending(int a, int b);
+```
+
+***
+
+## One‑line takeaway
+
+> **Lambdas are for local behavior; normal functions are for program structure.**
+
+You *can’t* replace normal functions everywhere with lambdas because:
+
+*   Lambdas lack linkage
+*   Lambdas don’t define stable interfaces
+*   Lambdas aren’t suited for APIs, polymorphism, or large‑scale reuse
+
+***
+
+If you want, I can next explain:
+
+*   **When lambdas outperform functions**
+*   **Why STL prefers lambdas**
+*   **Lambda vs function pointer vs std::function**
+*   **Real interview trick questions**
+
+Just say the word 😊
