@@ -1,0 +1,140 @@
+1. NULL VS nullptr:
+Here’s a **clear, interview‑ready explanation of `nullptr` vs `NULL` in C++**, suitable for a **UK technical interview**. I’ll keep it **simple, precise, and practical**, with examples.
+
+***
+
+# `nullptr` vs `NULL` in C++
+
+## 1. What is `NULL`?
+
+*   `NULL` is a **macro**, not a keyword.
+*   In C++, it is typically defined as:
+    *   `0`
+    *   or `0L`
+    *   or something equivalent (implementation‑dependent).
+
+```cpp
+#define NULL 0   // simplified view
+```
+
+### Key Problem with `NULL`
+
+Because `NULL` is basically an **integer constant**, the compiler **cannot always treat it as a pointer**.
+
+This can cause:
+
+*   Ambiguous function calls
+*   Accidental calls to integer overloads
+*   Unsafe code
+
+***
+
+## 2. What is `nullptr`?
+
+*   `nullptr` was introduced in **C++11**
+*   It is a **keyword**
+*   Its type is `std::nullptr_t`
+*   It represents a **pointer to nothing**, and **only that**
+
+```cpp
+int* p = nullptr;   // safe and clear
+```
+
+✅ `nullptr` **can only be used as a pointer value**  
+✅ It **cannot be converted to int implicitly**
+
+***
+
+## 3. Why `nullptr` is Better Than `NULL`
+
+### Example 1: Function Overload Problem
+
+```cpp
+void func(int);
+void func(int*);
+
+func(NULL);     // ❌ ambiguous or calls func(int)
+func(nullptr);  // ✅ calls func(int*)
+```
+
+👉 With `NULL`, the compiler may think you meant `int`.  
+👉 With `nullptr`, the intention is **unambiguous**.
+
+***
+
+### Example 2: Type Safety
+
+```cpp
+int x = nullptr;   // ❌ compile-time error
+int* p = NULL;     // ✅ but unsafe
+int* q = nullptr;  // ✅ safe
+```
+
+*   `nullptr` **cannot be assigned to non‑pointer types**
+*   This prevents accidental bugs
+
+***
+
+## 4. Comparison Summary
+
+| Aspect                    | `NULL`              | `nullptr`        |
+| ------------------------- | ------------------- | ---------------- |
+| Introduced in             | C / early C++       | C++11            |
+| Type                      | Macro (usually int) | `std::nullptr_t` |
+| Type‑safe                 | ❌ No                | ✅ Yes            |
+| Works with overloading    | ❌ Risky             | ✅ Safe           |
+| Recommended in modern C++ | ❌ No                | ✅ Yes            |
+
+***
+
+## 5. When Should You Use Each?
+
+### ✅ Use `nullptr` when:
+
+*   Writing **modern C++ (C++11 and later)**
+*   Working with pointers
+*   Overloaded functions
+*   Safety‑critical or large codebases
+
+### ❌ Avoid `NULL` when:
+
+*   Writing new C++ code
+*   API design
+*   Multithreaded or safety‑critical systems
+
+***
+
+## 6. Interview‑Level One‑Line Answer (Recommended)
+
+> “`nullptr` is a type‑safe C++11 keyword that represents a null pointer, whereas `NULL` is typically an integer macro, which can cause ambiguity and overload resolution issues. In modern C++, `nullptr` should always be preferred.”
+
+***
+
+## 7. UK Interview Follow‑Up You Might Get
+
+**Q:** Can `nullptr` be compared with pointers?  
+✅ Yes
+
+```cpp
+if (ptr == nullptr) { }
+```
+
+**Q:** Can `nullptr` be converted to `bool`?  
+✅ Yes (evaluates to false)
+
+**Q:** Is `nullptr` better for APIs?  
+✅ Yes, because it enforces clear pointer semantics.
+
+***
+
+## Final Recommendation
+
+> In **modern C++**, always use **`nullptr`**, never `NULL`.
+
+If you want, I can:
+✅ Add **memory‑management interview examples**
+✅ Compare `nullptr` with **`0`**
+✅ Provide **mock UK C++ Q\&A**
+✅ Connect this to **embedded / device software usage**
+
+Just tell me 👍
