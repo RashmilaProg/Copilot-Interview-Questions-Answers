@@ -359,3 +359,237 @@ If you want, I can:
 *   Explain **RAII in real system design**
 
 Just say the word 👍
+
+Q. When would you use shared_ptr and when would you use unique_ptr explain with example
+In modern C++, **`std::unique_ptr`** and **`std::shared_ptr`** are smart pointers that implement **RAII** to manage dynamic resources safely.  
+The key difference between them is **ownership semantics**.
+
+***
+
+# 1. `std::unique_ptr`
+
+## What it means
+
+✅ **Exclusive ownership**  
+Only **one** `unique_ptr` can own the object at a time.
+
+*   Cannot be copied
+*   Can be **moved**
+*   Lightweight (no reference counting)
+
+***
+
+## When to use `unique_ptr`
+
+Use `unique_ptr` when:
+
+✅ There is **one clear owner**  
+✅ You want **maximum performance**  
+✅ Ownership can be **transferred**, but not shared  
+✅ You want the **default choice**
+
+> **Rule of thumb:**  
+> *If you don’t explicitly need shared ownership, use `unique_ptr`.*
+
+***
+
+## Example: Single Ownership
+
+```cpp
+#include <memory>
+
+class File {
+public:
+    File() { /* open file */ }
+    ~File() { /* close file */ }
+};
+
+void process() {
+    std::unique_ptr<File> f = std::make_unique<File>();
+    // f owns the File object
+} // f goes out of scope → File destroyed
+```
+
+✅ Deterministic cleanup  
+✅ No overhead
+
+***
+
+## Transferring Ownership
+
+```cpp
+std::unique_ptr<File> createFile() {
+    return std::make_unique<File>();  // moved automatically
+}
+
+int main() {
+    auto f = createFile();  // ownership transferred
+}
+```
+
+Still only **one owner** at any time.
+
+***
+
+# 2. `std::shared_ptr`
+
+## What it means
+
+✅ **Shared ownership**  
+Multiple `shared_ptr`s can point to the **same object**.
+
+*   Uses **reference counting**
+*   Object destroyed when **last owner releases**
+*   Slight runtime overhead
+
+***
+
+## When to use `shared_ptr`
+
+Use `shared_ptr` when:
+
+✅ Multiple parts of the program **need to share ownership**  
+✅ Object lifetime is **not tied to a single scope**  
+✅ Ownership is **unclear or distributed**
+
+> `shared_ptr` models “**we all own this object together**”.
+
+***
+
+## Example: Shared Ownership
+
+```cpp
+#include <memory>
+
+class Logger {
+public:
+    void log(const std::string& msg) {}
+};
+
+void serviceA(std::shared_ptr<Logger> logger) {
+    logger->log("From A");
+}
+
+void serviceB(std::shared_ptr<Logger> logger) {
+    logger->log("From B");
+}
+
+int main() {
+    auto logger = std::make_shared<Logger>();
+
+    serviceA(logger);
+    serviceB(logger);
+} // Logger destroyed when last shared_ptr goes out of scope
+```
+
+✅ Logger survives as long as **any service uses it**
+
+***
+
+## Reference Counting Concept
+
+```cpp
+auto p1 = std::make_shared<int>(10); // count = 1
+auto p2 = p1;                        // count = 2
+p1.reset();                          // count = 1
+p2.reset();                          // count = 0 → object destroyed
+```
+
+***
+
+# 3. Key Differences Summary
+
+| Feature        | `unique_ptr` | `shared_ptr`       |
+| -------------- | ------------ | ------------------ |
+| Ownership      | Exclusive    | Shared             |
+| Copyable       | ❌ No         | ✅ Yes              |
+| Movable        | ✅ Yes        | ✅ Yes              |
+| Overhead       | Very low     | Higher (ref count) |
+| Lifetime       | Scope-based  | Reference-based    |
+| Default choice | ✅ Yes        | ❌ Only when needed |
+
+***
+
+# 4. Real‑World Analogy
+
+### `unique_ptr`
+
+🏠 **House with one owner**  
+You can sell it (move ownership), but only one person owns it at a time.
+
+### `shared_ptr`
+
+🏢 **Joint bank account**  
+Account exists as long as **at least one person** is using it.
+
+***
+
+# 5. Common Design Pattern (Best Practice)
+
+### Use `unique_ptr` internally, `shared_ptr` at boundaries
+
+```cpp
+class Manager {
+    std::unique_ptr<Resource> res;
+public:
+    Manager() : res(std::make_unique<Resource>()) {}
+};
+```
+
+Convert to `shared_ptr` **only if needed**:
+
+```cpp
+std::shared_ptr<Resource> shared = std::move(uniquePtr);
+```
+
+***
+
+# 6. Very Important Pitfall ⚠️
+
+## Cyclic References with `shared_ptr`
+
+```cpp
+struct A {
+    std::shared_ptr<B> b;
+};
+struct B {
+    std::shared_ptr<A> a;
+};
+```
+
+❌ Memory leak: reference count never reaches zero.
+
+✅ Fix using `std::weak_ptr`:
+
+```cpp
+struct B {
+    std::weak_ptr<A> a; // does not increase ref count
+};
+```
+
+***
+
+# 7. Interview‑Ready Answer ✅
+
+> Use `std::unique_ptr` when there is a single owner and ownership can be transferred. It’s fast, safe, and should be the default.  
+> Use `std::shared_ptr` only when multiple components need shared ownership and the object’s lifetime must be managed collectively.
+
+***
+
+# 8. Final Takeaway 🔑
+
+*   ✅ **Prefer `unique_ptr`**
+*   ✅ **Use `shared_ptr` only when ownership must be shared**
+*   ✅ Avoid premature `shared_ptr`
+*   ✅ Watch out for cycles (use `weak_ptr`)
+
+***
+
+If you want, I can also:
+
+*   Compare `shared_ptr` vs `weak_ptr`
+*   Show performance benchmarks
+*   Give **real interview problems**
+*   Explain ownership design patterns visually
+
+Just tell me 😊
