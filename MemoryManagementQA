@@ -593,3 +593,246 @@ If you want, I can also:
 *   Explain ownership design patterns visually
 
 Just tell me 😊
+
+Q. How does the compiler understand how much memory to delete when we call delete[] or delete
+Great question — this gets to the **core of how `new` / `delete` really work in C++** and is a **very common interview topic**.
+
+Short answer:
+
+> **The compiler does NOT decide how much memory to free.**  
+> The **runtime memory allocator** does — using **metadata stored during allocation**.
+
+Let’s break it down clearly.
+
+***
+
+## 1. Key Idea (One‑line summary)
+
+When you call `new` or `new[]`, the allocator **stores extra hidden information** about the allocation.  
+When you later call `delete` or `delete[]`, that metadata is consulted to:
+
+*   know **how much memory to free**
+*   know **how many destructors to call**
+
+***
+
+## 2. What Really Happens with `new`
+
+### Example
+
+```cpp
+int* p = new int;
+```
+
+Internally, this becomes something like:
+
+```cpp
+void* raw = operator new(sizeof(int));
+construct int at raw;
+```
+
+The **allocator**:
+
+*   allocates *more memory than requested*
+*   stores **metadata** (size, alignment, etc.)
+*   returns a pointer *after* the metadata
+
+<!---->
+
+    [ metadata ][ actual object ]
+                   ↑
+                   p
+
+You never see the metadata — but it’s there.
+
+***
+
+## 3. `delete` (single object)
+
+```cpp
+delete p;
+```
+
+Steps:
+
+1.  Compiler knows the **type** (`int`)
+2.  Destructor (if any) is called
+3.  Pointer is passed to `operator delete`
+4.  Allocator:
+    *   looks **backwards** from the pointer
+    *   finds size metadata
+    *   frees correct number of bytes
+
+✅ **Size comes from the allocator, not the compiler**
+
+***
+
+## 4. What About `new[]` and `delete[]`?
+
+This is where it gets interesting.
+
+### Example
+
+```cpp
+Foo* arr = new Foo[3];
+delete[] arr;
+```
+
+The allocator must know:
+
+*   total memory size
+*   **number of elements** (to call destructors)
+
+***
+
+## 5. Array Allocation Adds Extra Metadata
+
+When you do:
+
+```cpp
+new Foo[3]
+```
+
+The runtime allocates:
+
+    [ array_size ][ Foo ][ Foo ][ Foo ]
+                       ↑
+                      arr
+
+Where:
+
+*   `array_size` = number of elements (or sometimes bytes)
+*   Stored by the runtime, **not standardized how**
+*   Often called the **array cookie**
+
+***
+
+## 6. What `delete[]` Does
+
+```cpp
+delete[] arr;
+```
+
+Steps:
+
+1.  Runtime:
+    *   reads the **array size metadata**
+2.  Calls destructors **in reverse order**:
+    ```cpp
+    arr[2].~Foo();
+    arr[1].~Foo();
+    arr[0].~Foo();
+    ```
+3.  Frees the entire block using metadata
+
+✅ This is why `delete[]` is different from `delete`
+
+***
+
+## 7. Why `delete` vs `delete[]` Must Match ⚠️
+
+### ❌ Wrong usage
+
+```cpp
+Foo* arr = new Foo[3];
+delete arr;        // ❌ undefined behavior
+```
+
+Why this is bad:
+
+*   Only **one destructor** is called
+*   Allocator sees wrong layout
+*   Leads to **memory corruption**
+
+### ❌ Also wrong
+
+```cpp
+Foo* p = new Foo;
+delete[] p;       // ❌ undefined behavior
+```
+
+***
+
+## 8. What Does the Compiler Actually Know?
+
+| Responsibility      | Compiler | Runtime Allocator |
+| ------------------- | -------- | ----------------- |
+| Object type         | ✅ Yes    | ❌ No              |
+| Destructor to call  | ✅ Yes    | ❌ No              |
+| Allocation size     | ❌ No     | ✅ Yes             |
+| Array element count | ❌ No     | ✅ Yes             |
+| Memory layout       | ❌ No     | ✅ Yes             |
+
+✅ **Compiler: semantics**  
+✅ **Allocator: memory bookkeeping**
+
+***
+
+## 9. Placement `new` (Special Case)
+
+With **placement new**, *you* manage memory:
+
+```cpp
+void* buffer = malloc(sizeof(Foo));
+Foo* p = new(buffer) Foo;
+p->~Foo();
+free(buffer);
+```
+
+Here:
+
+*   No metadata stored
+*   No automatic delete
+*   **You must clean up manually**
+
+This shows metadata is normally the allocator’s job.
+
+***
+
+## 10. How Do Different Compilers Do This?
+
+The C++ standard:
+
+*   ✅ Guarantees correct behavior
+*   ❌ Does NOT specify how metadata is stored
+
+Possible implementations:
+
+*   Header before memory
+*   Footer after memory
+*   Separate allocation tables
+
+This is **implementation-defined**.
+
+***
+
+## 11. Cheat‑Sheet Summary ✅
+
+*   `new` / `new[]` allocate **extra hidden metadata**
+*   `delete`:
+    *   calls destructor
+    *   allocator frees correct size using metadata
+*   `delete[]`:
+    *   reads array size from metadata
+    *   calls **all destructors**
+    *   frees full block
+*   Compiler **doesn’t track memory size**
+*   Allocator **does**
+
+***
+
+## 12. Interview‑Ready Answer ✅
+
+> The compiler doesn’t know how much memory to delete. When `new` or `new[]` is called, the runtime allocator stores allocation metadata such as size and array length. On `delete` or `delete[]`, this metadata is consulted to call the correct number of destructors and free the appropriate amount of memory. This is why `delete` and `delete[]` must match.
+
+***
+
+If you want, I can also explain:
+
+*   Why destructors run in reverse order
+*   How this differs in **Java / GC languages**
+*   Smart pointers and how they avoid this issue
+*   What happens at the assembly level
+
+Just let me know 🙂
+
