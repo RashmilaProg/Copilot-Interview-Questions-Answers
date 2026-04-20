@@ -836,3 +836,387 @@ If you want, I can also explain:
 
 Just let me know 🙂
 
+Q. Move constructor vs Copy Constructor
+In C++, **copy constructors** and **move constructors** are both special member functions used to create a new object from an existing one—but they differ **in how resources are handled and when they are used**.
+
+***
+
+## 1. Copy Constructor
+
+### Definition
+
+A **copy constructor** creates a new object by **copying** the data from an existing object.
+
+```cpp
+ClassName(const ClassName& other);
+```
+
+### Key Characteristics
+
+*   Performs a **deep copy** (or logical copy) of resources.
+*   The **source object remains unchanged**.
+*   Can be **expensive** if the class manages dynamic memory, files, or other resources.
+*   Used when the source object is an **lvalue** (has a name).
+
+### Example
+
+```cpp
+class Buffer {
+    int* data;
+public:
+    Buffer(int size) {
+        data = new int[size];
+    }
+
+    // Copy constructor
+    Buffer(const Buffer& other) {
+        data = new int[*other.data];
+    }
+};
+```
+
+### When Copy Constructor Is Called
+
+```cpp
+Buffer b1(10);
+Buffer b2 = b1;        // Copy constructor
+Buffer b3(b1);        // Copy constructor
+```
+
+***
+
+## 2. Move Constructor
+
+### Definition
+
+A **move constructor** creates a new object by **stealing the resources** from a temporary (rvalue) object.
+
+```cpp
+ClassName(ClassName&& other);
+```
+
+(Notice the `&&`, which means **rvalue reference**.)
+
+### Key Characteristics
+
+*   Transfers ownership of resources instead of copying.
+*   **Source object is left in a valid but empty state**.
+*   Much **faster** than copying.
+*   Introduced in **C++11**.
+*   Used when the source object is a **temporary (rvalue)**.
+
+### Example
+
+```cpp
+class Buffer {
+    int* data;
+public:
+    Buffer(int size) {
+        data = new int[size];
+    }
+
+    // Move constructor
+    Buffer(Buffer&& other) noexcept {
+        data = other.data;
+        other.data = nullptr;  // release ownership
+    }
+};
+```
+
+### When Move Constructor Is Called
+
+```cpp
+Buffer createBuffer() {
+    return Buffer(10);
+}
+
+Buffer b = createBuffer();  // Move constructor
+```
+
+***
+
+## 3. Key Differences (Conceptual)
+
+| Aspect         | Copy Constructor            | Move Constructor              |
+| -------------- | --------------------------- | ----------------------------- |
+| Purpose        | Duplicate data              | Transfer ownership            |
+| Performance    | Slower (allocates & copies) | Faster (no allocation)        |
+| Source object  | Remains unchanged           | Left in valid but empty state |
+| Parameter type | `const T&`                  | `T&&`                         |
+| Introduced in  | C++98                       | C++11                         |
+| Used with      | lvalues                     | rvalues / temporaries         |
+
+***
+
+## 4. Why Move Constructors Matter
+
+Without move semantics:
+
+```cpp
+std::vector<Buffer> v;
+v.push_back(Buffer(1000));  // expensive copy (pre-C++11)
+```
+
+With move semantics:
+
+```cpp
+v.push_back(Buffer(1000));  // cheap move (C++11+)
+```
+
+This **dramatically improves performance**, especially in:
+
+*   STL containers
+*   Returning objects from functions
+*   Resource-managing classes (RAII)
+
+***
+
+## 5. Rule of Five (Important Related Concept)
+
+If your class manages resources and defines **one** of these, you should usually define **all**:
+
+1.  Destructor
+2.  Copy constructor
+3.  Copy assignment operator
+4.  Move constructor
+5.  Move assignment operator
+
+***
+
+## 6. Simple Analogy
+
+*   **Copy constructor**:  
+    *“Make me a full photocopy of this object.”*
+
+*   **Move constructor**:  
+    *“Take what this temporary object owns—I’m done with it.”*
+
+***
+
+If you want, I can also:
+
+*   Show **real interview-style examples**
+*   Explain **copy elision vs move**
+*   Compare **copy vs move assignment operators**
+*   Walk through **STL behavior** step-by-step
+
+Just tell me 🙂
+
+Q. Object Slicing
+**Object slicing** in C++ is a phenomenon that occurs when a **derived class object is copied into a base class object by value**, causing the **derived‑class–specific parts to be discarded (“sliced off”)**.
+
+***
+
+## 1. Why It Happens
+
+C++ is **statically typed**.  
+When you assign or pass an object **by value**, the compiler copies only what fits into the destination type.
+
+If the destination is a **base class**, only the **base part** of the derived object is copied.
+
+***
+
+## 2. Simple Example
+
+```cpp
+#include <iostream>
+using namespace std;
+
+class Base {
+public:
+    int x;
+    void show() const {
+        cout << "Base x = " << x << endl;
+    }
+};
+
+class Derived : public Base {
+public:
+    int y;
+    void show() const {
+        cout << "Derived x = " << x << ", y = " << y << endl;
+    }
+};
+
+int main() {
+    Derived d;
+    d.x = 10;
+    d.y = 20;
+
+    Base b = d;   // ❌ Object slicing occurs
+    b.show();
+}
+```
+
+### Output
+
+    Base x = 10
+
+### What Happened?
+
+*   `Derived` has `x` and `y`
+*   `Base` has only `x`
+*   While copying `d` into `b`, **`y` is sliced off**
+*   `b` becomes a pure `Base` object
+
+***
+
+## 3. Object Slicing with Virtual Functions
+
+Even **virtual functions do not prevent slicing**.
+
+```cpp
+class Base {
+public:
+    virtual void show() const {
+        cout << "Base\n";
+    }
+};
+
+class Derived : public Base {
+public:
+    void show() const override {
+        cout << "Derived\n";
+    }
+};
+
+int main() {
+    Derived d;
+    Base b = d;   // slicing
+    b.show();
+}
+```
+
+### Output
+
+    Base
+
+Why?
+
+*   `b` is a **Base object**, not a Derived object
+*   Virtual dispatch works only when accessed via **base reference or pointer**
+*   After slicing, the object is no longer Derived
+
+***
+
+## 4. When Object Slicing Commonly Occurs
+
+### ✅ By-value assignment
+
+```cpp
+Base b = derivedObj;
+```
+
+### ✅ Passing arguments by value
+
+```cpp
+void func(Base b);  // slicing
+
+func(derivedObj);
+```
+
+### ✅ Returning base objects by value
+
+```cpp
+Base create() {
+    return Derived();  // slicing
+}
+```
+
+***
+
+## 5. How to Prevent Object Slicing
+
+### ✅ Use References (Recommended)
+
+```cpp
+void func(const Base& b) {
+    b.show();
+}
+```
+
+```cpp
+Derived d;
+func(d);  // no slicing
+```
+
+### ✅ Use Pointers
+
+```cpp
+void func(const Base* b) {
+    b->show();
+}
+```
+
+```cpp
+Derived d;
+func(&d);  // no slicing
+```
+
+### ✅ Use Polymorphism Properly
+
+```cpp
+Base* b = new Derived();
+b->show();   // calls Derived::show()
+```
+
+***
+
+## 6. Correct Example (No Slicing)
+
+```cpp
+int main() {
+    Derived d;
+    d.x = 10;
+    d.y = 20;
+
+    Base& ref = d;   // reference, no slicing
+    ref.show();
+}
+```
+
+### Output
+
+    Derived x = 10, y = 20
+
+***
+
+## 7. Real-World Analogy
+
+*   **Object slicing** is like trying to fit a **large poster into a small envelope**  
+    → Only the part that fits survives
+
+*   Using **references/pointers** is like passing the **address of the poster**, not a copy
+
+***
+
+## 8. Key Takeaways (Interview-Ready)
+
+*   Object slicing happens when:
+    ✅ Derived object is copied into a base object  
+    ✅ Copy is done **by value**
+*   Derived-specific data and behavior are lost
+*   Virtual functions **do not stop slicing**
+*   Always use:
+    ✅ base **references**
+    ✅ base **pointers**
+    for polymorphism
+
+***
+
+## 9. One-Line Definition (Very Popular in Interviews)
+
+> **Object slicing is the loss of the derived part of an object when it is assigned or passed by value to a base class object.**
+
+***
+
+If you want, I can also explain:
+
+*   Object slicing **vs polymorphism**
+*   STL container slicing pitfalls
+*   Interview trick questions on slicing
+*   How `std::vector<Base>` causes slicing
+
+Just tell me 👍
+
+
